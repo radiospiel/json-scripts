@@ -1,0 +1,83 @@
+#!/bin/bash
+set -eu -o pipefail
+
+# JSON_VERSIONS="2.10.2 2.7.1"
+#  JSON_VERSIONS="2.10.2"
+# JSON_VERSIONS="2.10.2"
+JSON_VERSIONS=""
+
+MASTER=y
+
+# --- parse args
+
+if [ -z "${1:-}" ]; then
+  cat <<-MSG
+Missing target arguments.
+
+    $0 ints strings
+
+Set the JSON gem version number via JSON_VERSION; e.g.
+
+    JSON_VERSION=2.3.1 $0 ints
+MSG
+
+exit 1
+fi
+
+TARGETS="$@"
+
+# --- build local gem version
+
+echo "** installing gems $JSON_VERSIONS"
+
+# for JSON_VERSION in $(echo $JSON_VERSIONS) ; do
+#   gem info json -v $JSON_VERSION --installed --silent || (
+#     set -xv
+#     gem install json --version=$JSON_VERSION
+#     set +xv
+#   )
+# done
+
+function compile_and_run() {
+  local branch=$1
+  
+  local logfile=tmp/$(echo compile-$branch.log | sed s=/=-=g)
+  
+  echo "** rebuild $branch version $(tar c ext/json/ext | md5 | head -c 8) (output in $logfile)"  
+  if ! rake clean compile > $logfile 2>&1 ; then
+    cat $logfile
+    exit 1
+  fi
+  
+  (
+    export VERSION_LABEL=$branch
+    cd scripts/ && EXCEPT=json_coder:oj ruby encoder.rb $TARGETS
+  )
+}
+
+
+# --- running benchmarks
+echo "running benchmarks"
+
+current_branch=$(git branch --show-current)
+compile_and_run $current_branch
+
+if [ "${MASTER:-n}" == "y" ]; then
+  if git diff-index --quiet HEAD -- ; then
+    git checkout master
+    compile_and_run master
+    rake clean
+    git checkout $current_branch
+  else 
+    echo "The current dir has uncommitted changes, skipping master benchmarks"
+  fi
+fi
+
+if [ "$JSON_VERSIONS" ]; then
+  for JSON_VERSION in $(echo "$JSON_VERSIONS") ; do
+    echo "JSON_VERSION=$JSON_VERSION"
+    export JSON_VERSION=$JSON_VERSION
+    export VERSION_LABEL=$JSON_VERSION
+    (cd scripts/ && EXCEPT=json_coder:oj ruby encoder.rb $TARGETS)
+  done
+fi

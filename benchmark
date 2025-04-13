@@ -1,0 +1,28 @@
+#!/bin/bash
+set -eu -o pipefail
+
+if [ -z "${1:-}" ]; then
+  cat <<-MSG
+Missing target arguments.
+
+    $0 ints strings
+
+Set the JSON gem version number via JSON_VERSION; e.g.
+
+    JSON_VERSION=2.3.1 $0 ints
+MSG
+
+exit 1
+fi
+
+TARGETS="$@"
+
+if [ -z "${JSON_VERSION:-}" ]; then
+  echo "----- benchmarking local version."
+  rake clean compile > tmp/compile.txt 2>&1
+  (cd scripts/ && EXCEPT=json_coder:oj ruby encoder.rb $TARGETS)
+else
+  echo "----- benchmarking json $JSON_VERSION."
+  gem install json -v $JSON_VERSION
+  (cd scripts/ && EXCEPT=json_coder:oj ruby encoder.rb $TARGETS)
+fi

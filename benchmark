@@ -23,6 +23,7 @@ if [ -z "${JSON_VERSION:-}" ]; then
   (cd scripts/ && EXCEPT=json_coder:oj ruby encoder.rb $TARGETS)
 else
   echo "----- benchmarking json $JSON_VERSION."
-  gem install json -v $JSON_VERSION
+	# We expect that the gem is already installed.
+  # gem install json -v $JSON_VERSION
   (cd scripts/ && EXCEPT=json_coder:oj ruby encoder.rb $TARGETS)
 fi

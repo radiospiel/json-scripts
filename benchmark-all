@@ -1,12 +1,13 @@
 #!/bin/bash
 set -eu -o pipefail
 
-# JSON_VERSIONS="2.10.2 2.7.1"
+JSON_VERSIONS="2.12.0 2.10.2 2.7.1 2.3.1"
 #  JSON_VERSIONS="2.10.2"
 # JSON_VERSIONS="2.10.2"
-JSON_VERSIONS=""
+# JSON_VERSIONS=""
 
 MASTER=y
+MASTER=n
 
 # --- parse args
 
@@ -30,13 +31,14 @@ TARGETS="$@"
 
 echo "** installing gems $JSON_VERSIONS"
 
-# for JSON_VERSION in $(echo $JSON_VERSIONS) ; do
-#   gem info json -v $JSON_VERSION --installed --silent || (
-#     set -xv
-#     gem install json --version=$JSON_VERSION
-#     set +xv
-#   )
-# done
+if [ "$JSON_VERSIONS" ]; then
+	INSTALLED_VERSIONS=$(gem info json  |grep  'json ' | sed 's-[^ .0-9]--g')
+	for JSON_VERSION in $(echo $JSON_VERSIONS) ; do
+		echo $INSTALLED_VERSIONS | grep -F $JSON_VERSION > /dev/null || (
+	    gem install json --version=$JSON_VERSION
+	  )
+	done
+fi
 
 function compile_and_run() {
   local branch=$1
